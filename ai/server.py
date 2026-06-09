@@ -19,13 +19,14 @@ bnb_config = BitsAndBytesConfig(
     bnb_4bit_use_double_quant=True,
 )
 
-model_name = "google/gemma-4-12b-it"
+model_name = "Qwen/Qwen3.6-27B"
 model = AutoModelForCausalLM.from_pretrained(
     model_name,
     quantization_config=bnb_config,
     device_map="auto",
+    trust_remote_code=True,
 )
-tokenizer = AutoTokenizer.from_pretrained(model_name)
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 
 print("✅ 모델 로드 완료")
 
@@ -104,6 +105,7 @@ def extract_minutes(meeting_text: str) -> dict:
         messages,
         tokenize=False,
         add_generation_prompt=True,
+        enable_thinking=False,
     )
 
     model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
@@ -135,7 +137,7 @@ def extract_minutes(meeting_text: str) -> dict:
 # ── API 엔드포인트 ─────────────────────────────────────────────────────────
 @app.get("/")
 def health_check():
-    return {"status": "ok", "message": "RunPod 서버 정상 동작 중", "model": model_name}
+    return {"status": "ok", "message": "RunPod 서버 정상 동작 중"}
 
 
 @app.post("/generate", response_model=GenerateResponse)

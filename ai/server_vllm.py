@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
-MODEL_NAME = os.getenv("MODEL_NAME", "cyankiwi/gemma-4-12B-it-AWQ-INT4")
+MODEL_NAME = os.getenv("MODEL_NAME", "neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8")
 VLLM_BASE_URL = os.getenv("VLLM_BASE_URL", "http://127.0.0.1:8000/v1")
 
 client = OpenAI(base_url=VLLM_BASE_URL, api_key="dummy")
