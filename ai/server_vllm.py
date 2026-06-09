@@ -2,6 +2,7 @@ import json
 import os
 import re
 import time
+from datetime import date
 
 from fastapi import FastAPI, HTTPException
 from openai import OpenAI
@@ -15,15 +16,54 @@ VLLM_BASE_URL = os.getenv("VLLM_BASE_URL", "http://127.0.0.1:8000/v1")
 client = OpenAI(base_url=VLLM_BASE_URL, api_key="dummy")
 
 
+# ── 요청/응답 스키마 ───────────────────────────────────────────────────────────
 class GenerateRequest(BaseModel):
     text: str
-
 
 class GenerateResponse(BaseModel):
     cotent: str
     todo_list: list
 
+class AgendaRequest(BaseModel):
+    title: str
+    previous_summary: str = ""
+    ocr_text: str = ""
 
+class AgendaResponse(BaseModel):
+    agendas: list
+
+class ChatRequest(BaseModel):
+    question: str
+    context: str = ""
+    history: list = []
+    sources: list = []
+
+class ChatResponse(BaseModel):
+    answer: str
+    citations: list = []
+
+
+# ── 공통: LLM 호출 ─────────────────────────────────────────────────────────────
+def call_llm(messages: list, max_tokens: int = 2048) -> str:
+    response = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=messages,
+        max_tokens=max_tokens,
+        temperature=0.0,
+        extra_body={"repetition_penalty": 1.1},
+    )
+    raw = str(response.choices[0].message.content or "").strip()
+    return re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+
+
+def parse_json(raw: str) -> dict:
+    json_match = re.search(r"\{.*\}", raw, re.DOTALL)
+    if json_match:
+        return json.loads(json_match.group())
+    raise ValueError(f"JSON 파싱 실패: {raw[:200]}")
+
+
+# ── 회의록 요약 ────────────────────────────────────────────────────────────────
 def extract_minutes(meeting_text: str) -> dict:
     prompt = f"""[역할]
     너는 회의를 화자별로 분석한 원본 데이터를 분석하여 회의록을 작성하고, 해야 할 일 즉 태스크를 추출하는 Jira AI야
@@ -77,32 +117,75 @@ def extract_minutes(meeting_text: str) -> dict:
     [회의록 텍스트]
     {meeting_text}
     """
-
     messages = [
         {"role": "system", "content": "You are a helpful assistant. Always respond in valid JSON format only, with no extra text."},
         {"role": "user", "content": prompt},
     ]
-
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=messages,
-        max_tokens=2048,
-        temperature=0.0,
-        extra_body={"repetition_penalty": 1.1},
-    )
-
-    raw = str(response.choices[0].message.content or "").strip()
-    raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
-
-    json_match = re.search(r"\{.*\}", raw, re.DOTALL)
-    if json_match:
-        return json.loads(json_match.group())
-    raise ValueError(f"JSON 파싱 실패: {raw[:200]}")
+    return parse_json(call_llm(messages))
 
 
+# ── 기초 안건 생성 ──────────────────────────────────────────────────────────────
+def generate_agendas_fn(req: AgendaRequest) -> dict:
+    prompt = f"""회의 기초 안건을 생성해줘.
+
+규칙:
+- 회의 제목이 있으면 3~5개의 안건을 생성한다.
+- 이전 회의 요약과 OCR 참고 텍스트가 있으면 반영한다.
+- 입력에 없는 사람, 날짜, 회사명, 문서명은 지어내지 않는다.
+- 반드시 한국어 JSON만 반환한다.
+
+출력 형식:
+{{"agendas": [{{"title": "안건명", "content": "논의할 내용"}}]}}
+
+회의 제목: {req.title}
+이전 회의 요약: {req.previous_summary or "없음"}
+OCR 참고 텍스트: {req.ocr_text or "없음"}
+"""
+    messages = [
+        {"role": "system", "content": "Return valid Korean JSON only. Do not return an empty agendas array when a title is provided."},
+        {"role": "user", "content": prompt},
+    ]
+    return parse_json(call_llm(messages, max_tokens=1024))
+
+
+# ── 챗봇 ───────────────────────────────────────────────────────────────────────
+def chat_answer(req: ChatRequest) -> dict:
+    history = "\n".join(f"{item.get('role','user')}: {item.get('content','')}" for item in req.history[-8:])
+    prompt = f"""질문에 답해줘.
+
+규칙:
+- 반드시 [컨텍스트]에 있는 내용만 사용한다.
+- 컨텍스트에 없으면 "제공된 자료에서 확인할 수 없습니다."라고 답한다.
+- citations에는 실제로 사용한 출처만 sources에서 그대로 복사한다.
+- JSON만 반환한다.
+
+출력 형식:
+{{"answer": "답변", "citations": ["출처"]}}
+
+[대화 이력]
+{history or "없음"}
+
+[사용 가능한 출처]
+{json.dumps(req.sources, ensure_ascii=False)}
+
+[컨텍스트]
+{req.context or "없음"}
+
+[질문]
+{req.question}
+"""
+    messages = [
+        {"role": "system", "content": "You answer Korean questions using only the provided context. Return valid JSON only."},
+        {"role": "user", "content": prompt},
+    ]
+    return parse_json(call_llm(messages, max_tokens=1024))
+
+
+# ── 엔드포인트 ─────────────────────────────────────────────────────────────────
+@app.get("/health")
 @app.get("/")
 def health_check():
-    return {"status": "ok", "message": "vLLM Gemma4 서버 정상 동작 중", "model": MODEL_NAME}
+    return {"status": "ok", "model": MODEL_NAME}
 
 
 @app.post("/generate", response_model=GenerateResponse)
@@ -112,6 +195,27 @@ def generate_minutes(req: GenerateRequest):
         result = extract_minutes(req.text)
     except ValueError as e:
         raise HTTPException(status_code=500, detail=str(e))
-    elapsed = time.time() - start
-    print(f"✅ 회의록 생성 완료 | {elapsed:.1f}초")
+    print(f"✅ 회의록 생성 완료 | {time.time() - start:.1f}초")
+    return result
+
+
+@app.post("/generate-agendas", response_model=AgendaResponse)
+def create_agendas(req: AgendaRequest):
+    start = time.time()
+    try:
+        result = generate_agendas_fn(req)
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    print(f"✅ 안건 생성 완료 | {time.time() - start:.1f}초")
+    return result
+
+
+@app.post("/chat", response_model=ChatResponse)
+def chat(req: ChatRequest):
+    start = time.time()
+    try:
+        result = chat_answer(req)
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    print(f"✅ 챗봇 응답 완료 | {time.time() - start:.1f}초")
     return result
