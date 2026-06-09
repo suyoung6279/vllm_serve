@@ -1,0 +1,25 @@
+services:
+  vllm-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hpm-vllm-server
+    container_name: hpm-vllm-server
+    ports:
+      - "8000:8000"
+    volumes:
+      # 모델 캐시 — 재시작해도 재다운로드 안 함
+      - huggingface-cache:/root/.cache/huggingface
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}  # 비공개 모델일 경우 .env에 HF_TOKEN 설정
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  huggingface-cache:

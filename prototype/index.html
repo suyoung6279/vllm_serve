@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HPM 회의 AI 프로토타입</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #f4f5f7;
+        color: #172b4d;
+        font-family:
+          Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          "Noto Sans KR",
+          sans-serif;
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: 236px 1fr;
+        min-height: 100vh;
+      }
+
+      aside {
+        background: #111827;
+        color: #e5e7eb;
+        padding: 18px 14px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 40px;
+        margin-bottom: 22px;
+        font-weight: 750;
+      }
+
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: #facc15;
+        color: #111827;
+        font-weight: 800;
+      }
+
+      nav {
+        display: grid;
+        gap: 6px;
+      }
+
+      .nav-button {
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: #cbd5e1;
+        padding: 10px 12px;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .nav-button.active {
+        background: #374151;
+        color: #ffffff;
+      }
+
+      main {
+        min-width: 0;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 64px;
+        border-bottom: 1px solid #dfe1e6;
+        background: #ffffff;
+        padding: 0 28px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 260px;
+        justify-content: flex-end;
+        color: #5e6c84;
+        font-size: 13px;
+      }
+
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: #a5adba;
+      }
+
+      .dot.ok {
+        background: #36b37e;
+      }
+
+      .dot.fail {
+        background: #de350b;
+      }
+
+      .workspace {
+        padding: 24px 28px 42px;
+      }
+
+      .panel {
+        display: none;
+      }
+
+      .panel.active {
+        display: block;
+      }
+
+      .page-title {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      h2 {
+        margin: 0 0 6px;
+        font-size: 22px;
+      }
+
+      .subtle {
+        color: #6b778c;
+        font-size: 13px;
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .step {
+        border: 1px solid #dfe1e6;
+        border-radius: 6px;
+        background: #ffffff;
+        padding: 14px;
+      }
+
+      .step b {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 15px;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(360px, 0.9fr) minmax(420px, 1.1fr);
+        gap: 18px;
+        align-items: start;
+      }
+
+      .box {
+        border: 1px solid #dfe1e6;
+        border-radius: 6px;
+        background: #ffffff;
+        padding: 18px;
+      }
+
+      .box-title {
+        margin: 0 0 14px;
+        font-size: 15px;
+        font-weight: 750;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      label {
+        display: block;
+        margin: 12px 0 6px;
+        color: #42526e;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid #c1c7d0;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #172b4d;
+        padding: 9px 10px;
+      }
+
+      textarea {
+        min-height: 116px;
+        resize: vertical;
+        line-height: 1.5;
+      }
+
+      input[type="file"] {
+        padding: 8px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      button {
+        border: 1px solid #c1c7d0;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #172b4d;
+        padding: 9px 12px;
+        cursor: pointer;
+      }
+
+      button.primary {
+        border-color: #ffab00;
+        background: #ffab00;
+        color: #172b4d;
+        font-weight: 750;
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.62;
+      }
+
+      .result {
+        min-height: 420px;
+        max-height: 620px;
+        overflow: auto;
+        white-space: pre-wrap;
+        border-radius: 6px;
+        background: #0f172a;
+        color: #e5e7eb;
+        padding: 14px;
+        font-family: Consolas, "Cascadia Code", monospace;
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .result.compact {
+        min-height: 180px;
+      }
+
+      @media (max-width: 900px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+
+        aside {
+          position: static;
+        }
+
+        .flow,
+        .layout,
+        .row {
+          grid-template-columns: 1fr;
+        }
+
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+          padding: 16px;
+        }
+
+        .status {
+          min-width: 0;
+          justify-content: flex-start;
+        }
+
+        .workspace {
+          padding: 18px 16px 34px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside>
+        <div class="brand"><span class="brand-mark">H</span><span>HPM</span></div>
+        <nav aria-label="prototype navigation">
+          <button class="nav-button active" data-panel="dashboard">0. 흐름 확인</button>
+          <button class="nav-button" data-panel="before">1. 회의 전</button>
+          <button class="nav-button" data-panel="documents">1-1. 내부문서 적재</button>
+          <button class="nav-button" data-panel="meeting">2. 회의 중</button>
+          <button class="nav-button" data-panel="after">3. 회의 후</button>
+          <button class="nav-button" data-panel="chat">4. 회의 챗봇</button>
+        </nav>
+      </aside>
+
+      <main>
+        <header>
+          <h1>회의 전부터 회의 후까지 E2E 프로토타입</h1>
+          <div class="status">
+            <span id="status-dot" class="dot"></span>
+            <span id="status-text">RunPod 확인 중</span>
+          </div>
+        </header>
+
+        <div class="workspace">
+          <section id="dashboard" class="panel active">
+            <div class="page-title">
+              <div>
+                <h2>서비스 흐름</h2>
+                <div class="subtle">이전회의록 없이도 현재 회의 준비, 회의 중 질문, 회의 후 회의록 생성을 순서대로 확인합니다.</div>
+              </div>
+            </div>
+            <div class="flow">
+              <div class="step"><b>1. 회의 전</b><span class="subtle">안건 생성, 준비자료 생성, 내부문서 선택 적재</span></div>
+              <div class="step"><b>2. 회의 중</b><span class="subtle">회의 중 질의 또는 주요 논의 기록</span></div>
+              <div class="step"><b>3. 회의 후</b><span class="subtle">STT 텍스트로 회의록과 할 일 생성</span></div>
+              <div class="step"><b>4. 후속 질의</b><span class="subtle">Qdrant 컨텍스트 기반 챗봇 검증</span></div>
+            </div>
+            <div class="box">
+              <p class="box-title">현재 연결 상태</p>
+              <pre id="config-result" class="result compact"></pre>
+            </div>
+          </section>
+
+          <section id="before" class="panel">
+            <div class="page-title">
+              <div>
+                <h2>1. 회의 전</h2>
+                <div class="subtle">회의 정보를 입력하고 안건과 준비자료를 생성합니다. 준비자료는 Qdrant 내부문서와 Naver News를 조회합니다.</div>
+              </div>
+            </div>
+            <div class="layout">
+              <div class="box">
+                <p class="box-title">회의 정보</p>
+                <label for="meeting-title">회의 주제</label>
+                <input id="meeting-title" value="회의록 자동화 기능 개발 회의" />
+                <div class="row">
+                  <div>
+                    <label for="meeting-datetime">일시</label>
+                    <input id="meeting-datetime" value="2026-06-07 15:00" />
+                  </div>
+                  <div>
+                    <label for="meeting-location">장소</label>
+                    <input id="meeting-location" value="3층 회의실 A" />
+                  </div>
+                </div>
+                <label for="participants">참석자 / 직무</label>
+                <textarea id="participants">김지원 / 프로젝트 총괄
+김규호 / STT 및 백엔드 연동
+류지우 / 프론트엔드 및 발표자료
+박수영 / 검수 및 운영 정책</textarea>
+                <label for="agenda-prev">이전 회의 요약</label>
+                <textarea id="agenda-prev"></textarea>
+                <label for="agenda-ocr">외부 요청/OCR 참고 텍스트</label>
+                <textarea id="agenda-ocr"></textarea>
+                <label for="agendas">기초 안건</label>
+                <textarea id="agendas">STT API 연동 방식 결정
+회의 결과 화면 구성
+Jira 이슈 자동 등록 기준 확정</textarea>
+                <div class="actions">
+                  <button class="primary" data-action="agendas">안건 생성</button>
+                  <button class="primary" data-action="preparation">준비자료 생성</button>
+                  <button data-action="use-agendas">생성된 안건 반영</button>
+                </div>
+              </div>
+              <div>
+                <pre id="agendas-result" class="result compact"></pre>
+                <pre id="preparation-result" class="result" style="margin-top: 18px"></pre>
+              </div>
+            </div>
+          </section>
+
+          <section id="documents" class="panel">
+            <div class="page-title">
+              <div>
+                <h2>1-1. 내부문서 적재</h2>
+                <div class="subtle">선택 단계입니다. PDF를 업로드하면 RunPod가 파싱, 청킹, 임베딩, Qdrant 저장을 수행합니다.</div>
+              </div>
+            </div>
+            <div class="layout">
+              <div class="box">
+                <p class="box-title">내부문서 PDF</p>
+                <label for="document-title">문서 제목</label>
+                <input id="document-title" value="회의 자동화 참고 문서" />
+                <label for="document-files">PDF 파일</label>
+                <input id="document-files" type="file" accept="application/pdf,.pdf" multiple />
+                <div class="actions">
+                  <button class="primary" data-action="parse-documents">Qdrant에 적재</button>
+                </div>
+              </div>
+              <pre id="documents-result" class="result"></pre>
+            </div>
+          </section>
+
+          <section id="meeting" class="panel">
+            <div class="page-title">
+              <div>
+                <h2>2. 회의 중</h2>
+                <div class="subtle">현재는 실제 녹음/STT 대신 회의 중 메모와 질문을 검증합니다.</div>
+              </div>
+            </div>
+            <div class="layout">
+              <div class="box">
+                <p class="box-title">회의 중 기록</p>
+                <label for="live-notes">회의 중 메모</label>
+                <textarea id="live-notes" style="min-height: 240px">김지원: 오늘은 회의록 자동화 기능 개발 범위를 확정하겠습니다.
+김규호: 제가 STT API 연동 테스트를 이번 주 금요일까지 진행하겠습니다.
+류지우: 회의 결과 화면 초안은 다음 주 월요일까지 만들겠습니다.
+박수영: 운영 정책 문서는 제가 확인해서 공유하겠습니다.</textarea>
+                <label for="meeting-question">회의 중 질문</label>
+                <input id="meeting-question" value="이번 회의에서 STT 담당자는 누구야?" />
+                <div class="actions">
+                  <button class="primary" data-action="meeting-chat">회의 중 질문</button>
+                  <button data-action="copy-notes">회의 후 텍스트로 복사</button>
+                </div>
+              </div>
+              <pre id="meeting-result" class="result"></pre>
+            </div>
+          </section>
+
+          <section id="after" class="panel">
+            <div class="page-title">
+              <div>
+                <h2>3. 회의 후</h2>
+                <div class="subtle">STT 텍스트를 넣고 회의록, 할 일, 담당자, 마감일을 생성합니다.</div>
+              </div>
+            </div>
+            <div class="layout">
+              <div class="box">
+                <p class="box-title">STT 텍스트</p>
+                <label for="minutes-text">회의 텍스트</label>
+                <textarea id="minutes-text" style="min-height: 320px">김지원: 오늘은 회의록 자동화 기능 개발 범위를 확정하겠습니다.
+김규호: 제가 STT API 연동 테스트를 이번 주 금요일까지 진행하겠습니다.
+류지우: 회의 결과 화면 초안은 다음 주 월요일까지 만들겠습니다.
+박수영: 운영 정책 문서는 제가 확인해서 공유하겠습니다.
+김지원: Jira 이슈 등록은 회의록 생성 이후 자동으로 연결되도록 합시다.</textarea>
+                <div class="actions">
+                  <button class="primary" data-action="minutes">회의록 생성</button>
+                </div>
+              </div>
+              <pre id="minutes-result" class="result"></pre>
+            </div>
+          </section>
+
+          <section id="chat" class="panel">
+            <div class="page-title">
+              <div>
+                <h2>4. 회의 챗봇</h2>
+                <div class="subtle">Qdrant 검색 결과를 컨텍스트로 사용해 질문에 답합니다.</div>
+              </div>
+            </div>
+            <div class="layout">
+              <div class="box">
+                <p class="box-title">질문</p>
+                <label for="chat-question">질문</label>
+                <input id="chat-question" value="회의록 자동화 개발에서 백엔드가 확인해야 할 내용은 뭐야?" />
+                <label for="chat-history">대화 이력 JSON</label>
+                <textarea id="chat-history">[]</textarea>
+                <div class="actions">
+                  <button class="primary" data-action="chat">질문하기</button>
+                </div>
+              </div>
+              <pre id="chat-result" class="result"></pre>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const statusDot = document.querySelector("#status-dot");
+      const statusText = document.querySelector("#status-text");
+      let lastAgendaResult = null;
+
+      function showResult(id, value) {
+        const node = document.querySelector(`#${id}-result`);
+        if (!node) return;
+        node.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      }
+
+      function meetingPayload() {
+        return {
+          title: document.querySelector("#meeting-title").value,
+          meeting_datetime: document.querySelector("#meeting-datetime").value,
+          location: document.querySelector("#meeting-location").value,
+          participants: document
+            .querySelector("#participants")
+            .value.split("\n")
+            .map((line) => {
+              const [name, ...work] = line.split("/");
+              return { name: (name || "").trim(), work: work.join("/").trim() };
+            })
+            .filter((item) => item.name),
+          agendas: document
+            .querySelector("#agendas")
+            .value.split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean),
+        };
+      }
+
+      async function callApi(path, payload) {
+        const response = await fetch(`/api/${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        return readResponse(response);
+      }
+
+      async function readResponse(response) {
+        const text = await response.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = text;
+        }
+        if (!response.ok) {
+          throw new Error(typeof data === "string" ? data : JSON.stringify(data, null, 2));
+        }
+        return data;
+      }
+
+      async function checkStatus() {
+        try {
+          const config = await fetch("/api/config").then(readResponse);
+          showResult("config", config);
+          const health = await fetch("/api/health").then(readResponse);
+          statusDot.className = "dot ok";
+          statusText.textContent = `${health.text_model || health.text_gguf_repo || "RunPod"} 연결됨`;
+        } catch (error) {
+          statusDot.className = "dot fail";
+          statusText.textContent = `연결 실패: ${error.message.slice(0, 120)}`;
+        }
+      }
+
+      document.querySelectorAll(".nav-button").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll(".nav-button").forEach((node) => node.classList.remove("active"));
+          document.querySelectorAll(".panel").forEach((node) => node.classList.remove("active"));
+          button.classList.add("active");
+          document.querySelector(`#${button.dataset.panel}`).classList.add("active");
+        });
+      });
+
+      document.querySelectorAll("[data-action]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const action = button.dataset.action;
+          button.disabled = true;
+          try {
+            if (action === "parse-documents") {
+              showResult("documents", "PDF 파싱, 청킹, 임베딩, Qdrant 저장 중...");
+              const files = document.querySelector("#document-files").files;
+              const formData = new FormData();
+              [...files].forEach((file) => formData.append("files", file));
+              formData.append("title", document.querySelector("#document-title").value);
+              formData.append("document_type", "internal_document");
+              const response = await fetch("/api/documents/parse", { method: "POST", body: formData });
+              showResult("documents", await readResponse(response));
+            } else if (action === "agendas") {
+              showResult("agendas", "안건 생성 중...");
+              lastAgendaResult = await callApi("generate-agendas", {
+                title: document.querySelector("#meeting-title").value,
+                previous_summary: document.querySelector("#agenda-prev").value,
+                ocr_text: document.querySelector("#agenda-ocr").value,
+              });
+              showResult("agendas", lastAgendaResult);
+            } else if (action === "use-agendas") {
+              const agendas = lastAgendaResult?.result?.agendas || lastAgendaResult?.agendas || [];
+              if (!agendas.length) throw new Error("먼저 안건을 생성해 주세요.");
+              document.querySelector("#agendas").value = agendas.map((item) => item.title || item.content || String(item)).join("\n");
+            } else if (action === "preparation") {
+              showResult("preparation", "Qdrant 내부문서와 Naver News 검색 후 준비자료 생성 중...");
+              showResult("preparation", await callApi("generate-preparation", meetingPayload()));
+            } else if (action === "meeting-chat") {
+              showResult("meeting", "회의 중 질문 처리 중...");
+              showResult(
+                "meeting",
+                await callApi("chat", {
+                  question: document.querySelector("#meeting-question").value,
+                  context: "",
+                  history: [],
+                }),
+              );
+            } else if (action === "copy-notes") {
+              document.querySelector("#minutes-text").value = document.querySelector("#live-notes").value;
+            } else if (action === "minutes") {
+              showResult("minutes", "회의록 생성 중...");
+              showResult("minutes", await callApi("generate-minutes", { text: document.querySelector("#minutes-text").value }));
+            } else if (action === "chat") {
+              showResult("chat", "Qdrant 검색 후 답변 생성 중...");
+              let history = [];
+              try {
+                history = JSON.parse(document.querySelector("#chat-history").value || "[]");
+              } catch {
+                throw new Error("대화 이력은 JSON 배열이어야 합니다.");
+              }
+              showResult(
+                "chat",
+                await callApi("chat", {
+                  question: document.querySelector("#chat-question").value,
+                  context: "",
+                  history,
+                }),
+              );
+            }
+          } catch (error) {
+            const panel =
+              action === "parse-documents"
+                ? "documents"
+                : action === "meeting-chat" || action === "copy-notes"
+                  ? "meeting"
+                  : action === "use-agendas"
+                    ? "agendas"
+                    : action;
+            showResult(panel, `ERROR\n${error.message}`);
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+
+      checkStatus();
+    </script>
+  </body>
+</html>

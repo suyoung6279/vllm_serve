@@ -1,0 +1,4 @@
+# Prefer the RunPod/Docker base image `vllm/vllm-openai:gemma4` for Gemma 4 Unified.
+# Plain PyPI vLLM builds may not recognize `model_type=gemma4_unified`.
+vllm
+git+https://github.com/huggingface/transformers.git
